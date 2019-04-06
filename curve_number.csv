@@ -1,0 +1,17 @@
+NLCD,ID,A,B,C,D
+Open Water,11,100,100,100,100
+Perennial Snow,12,100,100,100,100
+"Developed, Open Space",21,39,61,74,80
+"Developed, Low Intensity",22,54,70,80,85
+"Developed, Medium Intensity",23,77,85,90,92
+"Developed, High Intensity",24,89,92,94,95
+Barren Land,31,77,86,91,94
+Deciduous Forest,41,30,30,41,48
+Evergreen Forest,42,30,55,70,77
+Mixed Forest,43,36,60,73,79
+Shrub Scrub,52,35,56,70,77
+Grassland Herbaceous,71,49,69,79,84
+Pasture Hay,81,30,58,71,78
+Cultivated Crops,82,67,78,85,89
+Woody Wetlands,90,100,100,100,100
+Emergent Herbaceous Wetlands,95,100,100,100,100

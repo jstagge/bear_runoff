@@ -1,0 +1,16 @@
+Number,Description,Revised_number,Revised_description,
+11,Open water,,1,Water
+90,Woody wetlands,,1,Water
+95,Emergent herbaceous wetlands,,1,Water
+21,"Developed, open space",,2,Medium Residential
+22,"Devleoped, low intensity",,2,Medium Residential
+23,"Devleoped, medium intensity",,2,Medium Residential
+24,"Developed, high intensity",,2,Medium Residential
+41,Deciduous forest,,3,Forest
+42,Evergreen forest,,3,Forest
+43,Mixed forest,,3,Forest
+31,Barrent land,,4,Agricultural
+52,Shrub scrub,,4,Agricultural
+71,Grassland herbaceous,,4,Agricultural
+81,Pasture hay,,4,Agricultural
+82,Cultivated crops,,4,Agricultural
