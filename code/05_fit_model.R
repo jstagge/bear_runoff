@@ -166,9 +166,9 @@ upper_bounds <- rep(upper_bounds, each=5)
 
 
 lower_bounds <- c(200, 0.2)
-lower_bounds <- rep(lower_bounds, each=5)
+lower_bounds <- c(rep(lower_bounds, each=5),1)
 upper_bounds <- c(2500, 2.6)
-upper_bounds <- rep(upper_bounds, each=5)
+upper_bounds <- c(rep(upper_bounds, each=5),6)
 
 
 start_time <- Sys.time()
@@ -176,11 +176,11 @@ start_time <- Sys.time()
 yup <- smsemoa(fitness.fun=optim_upper_basin, 
 	minimize = c(FALSE, TRUE, TRUE), 
 	n.objectives = 3, 
-	n.dim = 10, 
+	n.dim = 11, 
 	lower = lower_bounds, 
 	upper = upper_bounds, 
 	huc_info = hu_char, 
-	terminators = list(stopOnIters(500)))
+	terminators = list(stopOnIters(5000)))
 
 end_time <- Sys.time()
 end_time - start_time
@@ -209,18 +209,182 @@ huh3 <- huh3%>%
 	arrange(rank_all) %>%
 	filter(NSE > 0)
 
+huh3$rowid <- seq(1,dim(huh3)[1])
+
 head(huh3)
 
-ggplot(huh3, aes(x=RMSE_ann_min, y=NSE)) + geom_point() + theme_classic()
+ggplot(huh3, aes(x=RMSE_ann_min, y=NSE, label=rowid)) + geom_point() + theme_classic() + geom_text_repel(
+	nudge_y      = 0.04,
+    segment.size  = 0.2,
+    segment.color = "grey50",
+    direction     = "x"
+  ) 
 
-ggplot(huh3, aes(x=RMSE_ann_max, y=NSE)) + geom_point() + theme_classic()
+ggplot(huh3, aes(x=RMSE_ann_max, y=NSE, label=rowid)) + geom_point() + theme_classic() + geom_text_repel(
+	nudge_y      = 0.04,
+    segment.size  = 0.2,
+    segment.color = "grey50",
+    direction     = "x"
+  ) 
 
 
 
-ggplot(huh3, aes(x=V1, y=V2, colour=NSE, size=RMSE_ann_min)) + geom_point()
+ggplot(subset(huh3, NSE > 0.9 & RMSE_ann_max < 150), aes(x=RMSE_ann_min, y=NSE, label=rowid)) + geom_point() + theme_classic() + geom_text_repel(
+	nudge_y      = -0.004,
+    segment.size  = 0.2,
+    segment.color = "grey50",
+    direction     = "x"
+  ) 
 
 
 
+### Run with best params
+best_params <- unlist(huh3[46,4:14])
+
+pred_df <- upper_basin_model(x=best_params, huc_info = hu_char, clim_data = prism_df, hypso=hypso_quant)
+
+
+
+
+### Combine to get the gauge 
+pred_df$at_gauge <- apply(pred_df[,2:6],1,sum)
+
+comb_df <- pred_df %>% 
+	select(date, at_gauge) %>%
+	left_join(obs, by="date") %>%
+#	select(-staid) %>%
+	rename("pred" = "at_gauge", "obs" = "val")
+	
+comb_df <- comb_df  %>%
+	dplyr::mutate(month = month(date), year = year(date))  %>%
+	dplyr::mutate(resid = obs - pred) %>%
+	arrange(date)
+
+
+comb_df <- comb_df %>%
+	mutate(month = month(date))
+	
+plot_df <- comb_df %>%
+	select(date, obs, pred) %>%
+	gather("variable", "flow_cfs", -date)
+
+p <- ggplot(plot_df, aes(x=date, y=flow_cfs, colour=variable)) %>%
+	+ geom_line(size=0.3) %>%
+	+ theme_classic(9) %>%
+	+ scale_x_date(name = "Date", date_breaks = "5 years", date_labels = "%Y") %>%
+	+ scale_y_continuous(name="Monthly Mean Flow (cfs)") %>%
+	+ scale_colour_manual(name = "", values = c("Black", "Red"), labels=c("Observed", "Predicted")) %>%
+	+ theme(legend.position="bottom")
+
+p
+
+ggsave("fit_ts.png", p, width=10.5, height=4, dpi=320)
+
+p <- ggplot(comb_df, aes(x=obs, y=pred)) %>%
+	+ geom_abline(intercept = 0, slope = 1, color="grey50", size=0.5) %>%
+	+ geom_point() %>%
+	+ theme_classic(9) %>%
+	+ scale_x_continuous(name = "Observed (cfs)") %>%
+	+ scale_y_continuous(name="Predicted (cfs)") %>%
+	+ coord_fixed(ratio = 1)
+
+p
+
+
+ggsave("fit_pred_obs.png", p, width=4.5, height=4.5, dpi=320)
+
+p <- ggplot(comb_df, aes(x=obs, y=pred)) %>%
+	+ geom_abline(intercept = 0, slope = 1, color="grey50", size=0.5) %>%
+	+ geom_point() %>%
+	+ theme_bw(9) %>%
+	+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) %>%
+	+ scale_x_continuous(name = "Observed (cfs)") %>%
+	+ scale_y_continuous(name="Predicted (cfs)") %>%
+	+ facet_wrap(~month, scales = "free")
+
+
+ggsave("fit_pred_obs_bymonth.png", p, width=10, height=10, dpi=320)
+
+
+p <- ggplot(comb_df, aes(x=obs, y=resid)) %>%
+	+ geom_abline(intercept = 0, slope = 0, color="grey50", size=0.5) %>%
+	+ geom_point() %>%
+	+ theme_classic(9) %>%
+	+ scale_x_continuous(name = "Observed (cfs)") %>%
+	+ scale_y_continuous(name="Residuals (cfs)") %>%
+	+ coord_fixed(ratio = 1)
+
+p
+
+ggsave("fit_resid_obs.png", p, width=4.5, height=4.5, dpi=320)
+
+	
+	
+
+#gof_run <- gof(comb_df$pred, comb_df$obs, na.rm=TRUE)
+gof_run <- gof(comb_df$pred, comb_df$obs, na.rm=TRUE)
+
+### NSE
+#gof_run[[9]]
+
+### Find annual min and max, test the RMSE for each
+extremes <- comb_df %>%
+	dplyr::mutate(year = year(date)) %>%
+	group_by(year) %>%
+	summarise(obs_min = min(obs), pred_min = min(pred), obs_max = max(obs), pred_max = max(pred))
+
+gof_min <- gof(extremes$pred_min, extremes$obs_min, na.rm=TRUE)
+gof_max <- gof(extremes$pred_max, extremes$obs_max, na.rm=TRUE)
+
+
+
+p <- ggplot(extremes, aes(x=obs_min, y=pred_min)) %>%
+	+ geom_abline(intercept = 0, slope = 1, color="grey50", size=0.5) %>%
+	+ geom_point() %>%
+	+ theme_classic(9) %>%
+	+ scale_x_continuous(name = "Observed Annual Min (cfs)") %>%
+	+ scale_y_continuous(name="Predicted Annual Min (cfs)") %>%
+	+ coord_fixed(ratio = 1)
+
+p
+
+ggsave("annmin_pred_obs.png", p, width=4.5, height=4.5, dpi=320)
+
+
+p <- ggplot(extremes, aes(x=obs_max, y=pred_max)) %>%
+	+ geom_abline(intercept = 0, slope = 1, color="grey50", size=0.5) %>%
+	+ geom_point() %>%
+	+ theme_classic(9) %>%
+	+ scale_x_continuous(name = "Observed Annual Max (cfs)") %>%
+	+ scale_y_continuous(name="Predicted Annual Max (cfs)") %>%
+	+ coord_fixed(ratio = 1)
+
+p
+
+ggsave("annmax_pred_obs.png", p, width=4.5, height=4.5, dpi=320)
+
+	
+
+plot_df <- extremes %>%
+	gather("variable", "flow_cfs", -year) %>%
+	mutate(facet = case_when(grepl("max", variable) ~ "Annual Max",
+                            grepl("min", variable, ignore.case = TRUE) ~"Annual Min")) %>%
+	mutate(colour = case_when(grepl("obs", variable) ~ "Observed",
+                            grepl("pred", variable, ignore.case = TRUE) ~"Predicted")) 
+
+
+p <- ggplot(plot_df, aes(x=year, y=flow_cfs, colour=colour)) %>%
+	+ geom_line(size=0.3) %>%
+	+ theme_classic(9) %>%
+	#+ scale_x_date(name = "Date", date_breaks = "5 years", date_labels = "%Y") %>%
+	+ scale_y_continuous(name="Monthly Mean Flow (cfs)") %>%
+	+ scale_colour_manual(name = "", values = c("Black", "Red"), labels=c("Observed", "Predicted")) %>%
+	+ facet_grid(rows = vars(facet), scales="free_y") %>%
+	+ theme(legend.position="bottom")
+
+p
+
+ggsave("Annual_max_min.png", p, width=10.5, height=6, dpi=320)
 
 
 

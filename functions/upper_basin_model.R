@@ -5,7 +5,8 @@
 
 upper_basin_model <- function(x, huc_info, clim_data, hypso) {
 
-param_c <- x
+param_c <- x[1:10]
+melt_ind <- x[11]
 
 param_names <- c("X1", "X2")#, "melt_ind")
 param_huc <- huc_info$huc
@@ -44,7 +45,7 @@ hypso_i <- hypso %>%
 z_clim <- huc_info$elev_m[i]
 
 ### Add in Snow Module here
-snow_results <- snow_module(prism_monthly = prism_monthly , hypso = hypso_i , elev_gauge = z_clim,  melt_index = 2.74, n_layers = 10)
+snow_results <- snow_module(prism_monthly = prism_monthly , hypso = hypso_i , elev_gauge = z_clim,  melt_index = melt_ind, n_layers = 20)
 
 ### Join back with prism data
 snow_total <- snow_results$snow_total
